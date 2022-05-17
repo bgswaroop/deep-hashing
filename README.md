@@ -16,7 +16,7 @@ The goal of this seed is to structure ML paper-code the same so that work can ea
 
 <div align="center">    
  
-# Your Project Name     
+# Deep Image Hashing     
 
 [![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://www.nature.com/articles/nature14539)
 [![Conference](http://img.shields.io/badge/NeurIPS-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
@@ -77,6 +77,18 @@ trainer.fit(model, train, val)
 # test using the best model!
 trainer.test(test_dataloaders=test)
 ```
+
+## SOTA deep hashing
+#### Implementation of other state-of-the-art deep hashing methods in PyTorch lightning
+
+The following table summarizes the provided implementations of other deep hashing methods 
+along with their performance on popular datasets. The evaluation metric is MAP (mean average precision)   
+
+| Method                                                                                                                                                                                                                                                                                              | CIFAR-10 | Other dataset |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|--------------:|
+| Deep supervised hashing for fast image retrieval <br/> **DSH** ([paper](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Liu_Deep_Supervised_Hashing_CVPR_2016_paper.pdf), [code](https://github.com/bgswaroop/deep-hashing/blob/master/project/lit_sota_2016_DSH.py)) - CVPR 2016 |  77.94   |             - |
+| Additional papers                                                                                                                                                                                                                                                                                   |    -     |             - |
+
 
 ### Citation   
 ```

@@ -5,12 +5,10 @@ from setuptools import setup, find_packages
 setup(
     name='project',
     version='0.0.0',
-    description='Describe Your Cool Project',
-    author='',
-    author_email='',
-    # REPLACE WITH YOUR OWN GITHUB PROJECT LINK
-    url='https://github.com/PyTorchLightning/pytorch-lightning-conference-seed',
+    description='Implementation of deep image hashing methods',
+    author='Guru Swaroop Bennabhaktula',
+    author_email='bguruswaroop@gmail.com',
+    url='https://github.com/bgswaroop/deep-hashing',
     install_requires=['pytorch-lightning'],
     packages=find_packages(),
 )
-
