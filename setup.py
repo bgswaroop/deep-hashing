@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='project',
-    version='0.0.0',
+    version='0.1.0',
     description='Implementation of deep image hashing methods',
     author='Guru Swaroop Bennabhaktula',
     author_email='bguruswaroop@gmail.com',

@@ -30,7 +30,7 @@
 </div>
  
 ## Description   
-Implementation of state-of-the-art deep hashing methods   
+Implementation of state-of-the-art deep hashing methods in PyTorch Lightning   
 
 ## How to run   
 First, install dependencies   
@@ -48,38 +48,43 @@ Next, navigate to any file and run it.
 # module folder
 cd project
 
-# run module   
-python sota_2016_CVPR_DSH.py    
+# run module
+# Customize your run by overriding all the default arguments.
+# To see list of possible arguments >> python module_name.py --help   
+python sota_2016_CVPR_DSH.py
+python sota_2017_NIPS_DSDH.py    
 ```
 
 ## SOTA deep hashing
 #### Implementation of other state-of-the-art deep hashing methods in PyTorch lightning
 
 The following table summarizes the provided implementations of other deep hashing methods 
-along with their performance on popular datasets. The evaluation metric is mAP (mean average precision)   
+along with their performance on popular datasets. The evaluation metric is mAP (mean average precision).   
 
 
 <table>
     <thead>
         <tr>
             <th rowspan=2>Supervised Methods</th>
-            <th colspan=2>CIFAR-10</th>
+            <th colspan=3>CIFAR-10</th>
         </tr>
         <tr>
             <th>12-bit</th>
-            <th>48-bit</th>
+            <th colspan=2>48-bit</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>Deep supervised hashing for fast image retrieval <br/> <b>DSH</b> (<a href="https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Liu_Deep_Supervised_Hashing_CVPR_2016_paper.pdf">paper</a>, <a href="https://github.com/bgswaroop/deep-hashing/blob/master/project/sota_2016_CVPR_DSH.py">code</a>) - CVPR 2016 </td>
-            <td>0.6249<br/><small>scratch</small></td>
-            <td>0.7794<br/><small>fine-tune</small></td>
+            <td style="text-align: center">0.6249<br/><small>scratch</small></td>
+            <td style="text-align: center">0.6948<br/><small>scratch</small></td>
+            <td style="text-align: center">0.7794<br/><small>fine-tune</small></td>
         </tr>
         <tr>
             <td>Deep supervised discrete hashing <br/> <b>DSDH</b> (<a href="https://proceedings.neurips.cc/paper/2017/file/e94f63f579e05cb49c05c2d050ead9c0-Paper.pdf">paper</a>, <a href="https://github.com/bgswaroop/deep-hashing/blob/master/project/sota_2017_NIPS_DSDH.py">code</a>) - NIPS 2017 </td>
-            <td></td>
-            <td></td>
+            <td style="text-align: center"></td>
+            <td style="text-align: center"> - <br/><small>using CNN-F</small></td>
+            <td style="text-align: center">0.9540<br/><small>using vgg16</small></td>
         </tr>
     </tbody>
 </table>
@@ -89,7 +94,7 @@ along with their performance on popular datasets. The evaluation metric is mAP (
 [//]: # (```)
 
 [//]: # (@article{YourName,)
-
+    
 [//]: # (  title={Your Title},)
 
 [//]: # (  author={Your team},)

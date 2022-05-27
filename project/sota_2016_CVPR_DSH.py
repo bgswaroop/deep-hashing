@@ -1,5 +1,6 @@
 import argparse
 from itertools import combinations_with_replacement
+from pathlib import Path
 from typing import Any
 
 import pytorch_lightning as pl
@@ -14,10 +15,10 @@ from torchvision.datasets.cifar import CIFAR10
 from utils.metrics import compute_map_score
 
 
-class LitClassifier(pl.LightningModule):
-    def __init__(self, hash_length=48, regularization_weight_alpha=0.01, learning_rate=1e-3, weight_decay=0.004):
+class Classifier(pl.LightningModule):
+    def __init__(self, *args):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(*args)
 
         self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=32, kernel_size=(5, 5), padding='same')
         self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5, 5), padding='same')
@@ -87,7 +88,7 @@ class LitClassifier(pl.LightningModule):
         if dataloader_idx == 0:
             loss = self.dsh_loss(predictions, y, self.hparams.hash_length * 2, self.hparams.regularization_weight_alpha)
             self.log('loss', {'val': loss}, add_dataloader_idx=False)
-            # This additional log is to save the model with least loss_val
+            # This additional log is to save the model with the least loss_val
             self.log('loss_val', loss, add_dataloader_idx=False, logger=False)
             return {'val_data': {'hash_codes': hash_code, 'ground_truths': y}}
         elif dataloader_idx == 1:
@@ -145,13 +146,33 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', default=100, type=int)
     # effective batch size is 5050 - as we are performing online training - combinations_with_replacement(batch, 2)
-    parser.add_argument('--dataset_dir', default='/data/p288722/datasets/cifar', type=str)
+    parser.add_argument('--dataset_dir', default=Path('/data/p288722/datasets/cifar'), type=Path)
+    parser.add_argument('--logs_dir', default=Path('/data/p288722/runtime_data/deep_hashing'), type=Path)
+    parser.add_argument('--experiment_name', default='sota_dsh_baseline_cifar10', type=str)
+    parser.add_argument('--num_workers', default=2, type=int,
+                        help='how many subprocesses to use for data loading. ``0`` means that the data will be '
+                             'loaded in the main process. (default: ``2``)')
     parser.add_argument('--finetune', action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument('--finetune_ckpt', type=str,
+                        default='/data/p288722/runtime_data/deep_hashing/sota_dsh_baseline_cifar10/'
+                                '12-bit-scratch/checkpoints/epoch=26-step=12150.ckpt')
+
     parser = pl.Trainer.add_argparse_args(parser)
-    parser = LitClassifier.add_model_specific_args(parser)
+    parser = Classifier.add_model_specific_args(parser)
     args = parser.parse_args()
-    args.accelerator = 'gpu'
-    args.max_epochs = 60
+
+    if not args.accelerator:
+        args.accelerator = 'gpu'
+    if not args.max_epochs:
+        args.max_epochs = 60
+
+    assert args.dataset_dir.exists(), 'dataset_dir does not exists!'
+    assert args.logs_dir.exists(), 'logs_dir does not exists!'
+    args.logs_dir.joinpath(args.experiment_name).mkdir(exist_ok=True)
+
+    if args.finetune:
+        assert Path(args.finetune_ckpt).exists(), 'finetune_ckpt path does not exists!'
+
     # ------------
     # data
     # ------------
@@ -166,22 +187,20 @@ def main():
         normalize
     ])
     dataset = CIFAR10(args.dataset_dir, train=True, download=True, transform=transform_train)
-    mnist_test = CIFAR10(args.dataset_dir, train=False, download=True, transform=transform_test)
-    mnist_train, mnist_val = random_split(dataset, [45000, 5000], generator=torch.Generator().manual_seed(99))
-
-    train_loader = DataLoader(mnist_train, batch_size=args.batch_size, num_workers=2)
-    val_loader = DataLoader(mnist_val, batch_size=args.batch_size, num_workers=2)
-    test_loader = DataLoader(mnist_test, batch_size=args.batch_size, num_workers=2)
+    data_split_test = CIFAR10(args.dataset_dir, train=False, download=True, transform=transform_test)
+    data_split_train, data_split_val = random_split(dataset, [45000, 5000], generator=torch.Generator().manual_seed(99))
+    train_loader = DataLoader(data_split_train, batch_size=args.batch_size, num_workers=args.num_workers)
+    val_loader = DataLoader(data_split_val, batch_size=args.batch_size, num_workers=args.num_workers)
+    test_loader = DataLoader(data_split_test, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # ------------
     # model
     # ------------
-    model = LitClassifier()
+    model = Classifier(args)
 
     if args.finetune:
         # copy the pre-trained weights from 12-bit trained model to the 48-bit model
-        model_12_bit = torch.load('/data/p288722/runtime_data/deep_hashing/sota_dsh_baseline_cifar10/'
-                                  '12-bit-scratch/checkpoints/epoch=26-step=12150.ckpt')
+        model_12_bit = torch.load(args.finetune_ckpt)
         layers_to_update = set(list(model_12_bit['state_dict'].keys())[:-2])
         for name, param in model.state_dict().items():
             if name in layers_to_update:
@@ -190,8 +209,7 @@ def main():
     # ------------
     # training
     # ------------
-    logger = TensorBoardLogger(save_dir=r"/data/p288722/runtime_data/deep_hashing", name="sota_dsh_baseline_cifar10",
-                               default_hp_metric=False)
+    logger = TensorBoardLogger(save_dir=args.logs_dir, name=args.experiment_name, default_hp_metric=False)
     ckpt_callback = ModelCheckpoint(mode='min', monitor='loss_val', save_last=True)
     lr_monitor_callback = LearningRateMonitor(logging_interval='epoch')
     trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[ckpt_callback, lr_monitor_callback])
