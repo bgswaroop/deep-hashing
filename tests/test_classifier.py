@@ -18,13 +18,12 @@ class DeepHashingFastDevUnitTests(unittest.TestCase):
 
     def test_sota_2016_CVPR_DSH(self):
         test_file = str(self.project_dir.joinpath('sota_2016_CVPR_DSH.py'))
-        subprocess.run(['python', test_file, '--fast_dev=2 --accelerator="gpu" --num_workers=2'],
+        subprocess.run([r'python.exe', test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0'],
                        check=True)
-        assert True
 
     def test_sota_2017_NIPS_DSDH(self):
         test_file = str(self.project_dir.joinpath('sota_2017_NIPS_DSDH.py'))
-        subprocess.run(['python', test_file, '--fast_dev=2 --accelerator="gpu" --num_workers=2'],
+        subprocess.run([r'python.exe', test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0'],
                        check=True)
 
 
