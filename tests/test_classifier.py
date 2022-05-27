@@ -1,15 +1,32 @@
-from pytorch_lightning import Trainer, seed_everything
-from project.lit_mnist import LitClassifier
-from project.datasets.mnist import mnist
+import os.path
+import subprocess
+import unittest
+from pathlib import Path
+
+import project
 
 
-def test_lit_classifier():
-    seed_everything(1234)
+class DeepHashingFastDevUnitTests(unittest.TestCase):
+    """These tests run the entire flow of the PyTorch lightning modules in fast_dev mode, ensuring that there are
+    no syntax errors or runtime errors."""
 
-    model = LitClassifier()
-    train, val, test = mnist()
-    trainer = Trainer(limit_train_batches=50, limit_val_batches=20, max_epochs=2)
-    trainer.fit(model, train, val)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project_dir = Path(os.path.dirname(project.__file__))
+        self.dataset_dir = ''
+        self.logs_dir = ''
 
-    results = trainer.test(test_dataloaders=test)
-    assert results[0]['test_acc'] > 0.7
+    def test_sota_2016_CVPR_DSH(self):
+        test_file = str(self.project_dir.joinpath('sota_2016_CVPR_DSH.py'))
+        subprocess.run(['python', test_file, '--fast_dev=2 --accelerator="gpu" --num_workers=2'],
+                       check=True)
+        assert True
+
+    def test_sota_2017_NIPS_DSDH(self):
+        test_file = str(self.project_dir.joinpath('sota_2017_NIPS_DSDH.py'))
+        subprocess.run(['python', test_file, '--fast_dev=2 --accelerator="gpu" --num_workers=2'],
+                       check=True)
+
+
+if __name__ == '__main__':
+    unittest.main()
