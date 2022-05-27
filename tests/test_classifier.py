@@ -1,5 +1,5 @@
 import os.path
-import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -17,14 +17,16 @@ class DeepHashingFastDevUnitTests(unittest.TestCase):
         self.logs_dir = ''
 
     def test_sota_2016_CVPR_DSH(self):
+        from project.sota_2016_CVPR_DSH import main
         test_file = str(self.project_dir.joinpath('sota_2016_CVPR_DSH.py'))
-        subprocess.run([r'python', test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0'],
-                       check=True)
+        sys.argv = [test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0', '--no-finetune']
+        main()
 
     def test_sota_2017_NIPS_DSDH(self):
+        from project.sota_2017_NIPS_DSDH import main
         test_file = str(self.project_dir.joinpath('sota_2017_NIPS_DSDH.py'))
-        subprocess.run([r'python', test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0'],
-                       check=True)
+        sys.argv = [test_file, '--fast_dev=1', '--accelerator=cpu', '--num_workers=0']
+        main()
 
 
 if __name__ == '__main__':
