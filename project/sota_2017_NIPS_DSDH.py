@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.cifar import CIFAR10
 
-from utils.metrics import compute_map_score
+from .utils.metrics import compute_map_score
 
 
 class Classifier(pl.LightningModule):
@@ -185,6 +185,7 @@ class ClassifierCnnF(Classifier):
     """This is an implementation of the CNN-F architecture from the paper -
     Return of the Devil in the Details: Delving Deep into Convolutional Nets (BMVC 2014)
     """
+
     def __init__(self, *args):
         super(ClassifierCnnF, self).__init__(*args)
 
