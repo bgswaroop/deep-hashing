@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.cifar import CIFAR10
 
-from .utils.metrics import compute_map_score
+from project.utils.metrics import compute_map_score
 
 
 class Classifier(pl.LightningModule):
