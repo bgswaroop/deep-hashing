@@ -56,7 +56,9 @@ python sota_2017_NIPS_DSDH.py
 ```
 
 ## SOTA deep hashing
-#### Implementation of other state-of-the-art deep hashing methods in PyTorch lightning
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/deep-supervised-hashing-for-fast-image/image-retrieval-on-cifar-10)](https://paperswithcode.com/sota/image-retrieval-on-cifar-10?p=deep-supervised-hashing-for-fast-image)
+
+#### Implementation of state-of-the-art deep hashing methods (SOTA) in PyTorch lightning
 
 The following table summarizes the provided implementations of other deep hashing methods 
 along with their performance on popular datasets. The evaluation metric is mAP (mean average precision).   
