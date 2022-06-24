@@ -9,14 +9,11 @@ from torchvision.datasets.cifar import CIFAR10
 
 
 class AddGaussianNoise(object):
-    def __init__(self, mean, std, seed=None):
+    def __init__(self, mean, std):
         self.std = std
         self.mean = mean
-        self.seed = seed
 
     def __call__(self, tensor):
-        if self.seed:
-            generator = torch.random.manual_seed(0)
         return tensor + torch.randn(tensor.size()) * self.std + self.mean
 
     def __repr__(self):
@@ -27,27 +24,27 @@ def compare_methods_with_noisy_test():
     with open(r'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/'
               r'48-bit-scratch_30-60epochs/plots/gaussian.json') as f:
         baseline_ConvNet = json.load(f)
-    exp1_name = 'push3_pull3_avg3_inhibition3_scale0_bias1'
+    exp1_name = 'push3_pull3_avg3_inhibition1_scale0_bias1'
     with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp1_name}/plots/gaussian.json') as f:
         exp1_push_pull = json.load(f)
-    exp2_name = 'push3_pull5_avg0_inhibition3_scale0_bias1'
+    exp2_name = 'push3_pull5_avg0_inhibition1_scale0_bias1'
     with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp2_name}/plots/gaussian.json') as f:
         push_pull_exp2 = json.load(f)
-    exp3_name = 'push3_pull5_avg3_inhibition3_scale0_bias1'
+    exp3_name = 'push3_pull5_avg3_inhibition1_scale0_bias1'
     with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp3_name}/plots/gaussian.json') as f:
         push_pull_exp3 = json.load(f)
-    exp4_name = 'push5_pull5_avg3_inhibition3_scale0_bias1'
+    exp4_name = 'push5_pull5_avg3_inhibition1_scale0_bias1'
     with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp4_name}/plots/gaussian.json') as f:
         push_pull_exp4 = json.load(f)
-    exp5_name = 'push5_pull5_avg5_inhibition3_scale0_bias1'
+    exp5_name = 'push5_pull5_avg5_inhibition1_scale0_bias1'
     with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp5_name}/plots/gaussian.json') as f:
         push_pull_exp5 = json.load(f)
-    # exp6_name = 'exp06_conv_filter=5x5_avg_filter=5x5_inhibition_factor=3'
-    # with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull/{exp6_name}/plots/gaussian.json') as f:
-    #     push_pull_exp6 = json.load(f)
-    # exp7_name = 'exp07_conv_filter=3x3_avg_filter=3x3_inhibition_factor=3'
-    # with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull/{exp7_name}/plots/gaussian.json') as f:
-    #     push_pull_exp7 = json.load(f)
+    exp6_name = 'push5_pull5_avg0_inhibition1_scale0_bias1'
+    with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp6_name}/plots/gaussian.json') as f:
+        push_pull_exp6 = json.load(f)
+    exp7_name = 'push3_pull3_avg0_inhibition1_scale0_bias1'
+    with open(rf'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch/{exp7_name}/plots/gaussian.json') as f:
+        push_pull_exp7 = json.load(f)
 
     assert baseline_ConvNet['std_dev'] == exp1_push_pull['std_dev'], 'Mismatch in x-axis std_dev'
 
@@ -58,20 +55,20 @@ def compare_methods_with_noisy_test():
     plt.plot(baseline_ConvNet['std_dev'], push_pull_exp3['mAP_score'], label=f'{exp3_name}')
     plt.plot(baseline_ConvNet['std_dev'], push_pull_exp4['mAP_score'], label=f'{exp4_name}')
     plt.plot(baseline_ConvNet['std_dev'], push_pull_exp5['mAP_score'], label=f'{exp5_name}')
-    # plt.plot(baseline_ConvNet['std_dev'], push_pull_exp6['mAP_score'], label=f'{exp6_name}')
-    # plt.plot(baseline_ConvNet['std_dev'], push_pull_exp7['mAP_score'], label=f'{exp7_name}')
+    plt.plot(baseline_ConvNet['std_dev'], push_pull_exp6['mAP_score'], label=f'{exp6_name}')
+    plt.plot(baseline_ConvNet['std_dev'], push_pull_exp7['mAP_score'], label=f'{exp7_name}')
     plt.xlabel('std_dev')
     plt.ylabel('mAP_score')
     plt.title('Effect of Gaussian Noise during test\nwhen ConvNet is trained on clean images')
 
     ax = plt.gca()
     # ax.set_xlim([xmin, xmax])
-    ax.set_ylim([0.56, 0.78])
+    ax.set_ylim([0.3, 0.78])
 
     # plt.legend(bbox_to_anchor=(1, 0), loc="lower right", borderaxespad=0)
     plt.legend(bbox_to_anchor=(1.04, 1), borderaxespad=0)
     # plt.tight_layout(rect=[0,0,0.75,1])
-    plt.savefig('impact_of_gaussian_noise_inhibition3.png', bbox_inches="tight")
+    plt.savefig('impact_of_gaussian_noise_inhibition1.png', bbox_inches="tight")
     plt.show()
 
 
@@ -126,7 +123,6 @@ def plot_push_pull_kernels(push_response, pull_response, avg_pull_response, x, x
 
 def plot_cifar_with_gaussian_noise():
     fig, ax = plt.subplots(2, 10, figsize=(15, 3.3))
-    # normalize = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
     dataset_dir = r'/data/p288722/datasets/cifar'
     num_tests = 20
     row_id = 0
@@ -135,14 +131,13 @@ def plot_cifar_with_gaussian_noise():
         transform_test = transforms.Compose([
             transforms.ToTensor(),
             AddGaussianNoise(mean=0, std=std),
-            # normalize,
+            # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
         data_split_test = CIFAR10(dataset_dir, train=False, download=True, transform=transform_test)
         test_loader = DataLoader(data_split_test, batch_size=32)
 
         for data, label in test_loader:
             sample_data = data[4]
-            # sample_label = label[4]
             plt.figure()
             ax[row_id][col_id].imshow(torch.transpose(sample_data, 0, 2))
             ax[row_id][col_id].set_title(f'{round(std, 3)}')
@@ -159,5 +154,5 @@ def plot_cifar_with_gaussian_noise():
 
 
 if __name__ == '__main__':
-    # compare_methods_with_noisy_test()
-    plot_cifar_with_gaussian_noise()
+    compare_methods_with_noisy_test()
+    # plot_cifar_with_gaussian_noise()
