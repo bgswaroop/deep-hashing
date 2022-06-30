@@ -121,9 +121,16 @@ class Classifier(pl.LightningModule):
                                             pull_inhibition_strength=args.pull_inhibition_strength,
                                             scale_the_outputs=args.scale_the_outputs,
                                             padding='same', bias=args.bias)
+            self.conv2 = PushPullConv2DUnit(in_channels=32, out_channels=32,
+                                            push_kernel_size=args.push_kernel_size,
+                                            pull_kernel_size=args.pull_kernel_size,
+                                            avg_kernel_size=args.avg_kernel_size,
+                                            pull_inhibition_strength=args.pull_inhibition_strength,
+                                            scale_the_outputs=args.scale_the_outputs,
+                                            padding='same', bias=args.bias)
         else:
             self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=32, kernel_size=(5, 5), padding='same')
-        self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5, 5), padding='same')
+            self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5, 5), padding='same')
         self.conv3 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(5, 5), padding='same')
         self.fc1 = torch.nn.Linear(in_features=3 * 3 * 64, out_features=500)
         self.fc2 = torch.nn.Linear(in_features=500, out_features=self.hparams.hash_length)
@@ -247,20 +254,18 @@ def train_on_clean_images():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', default=100, type=int)
     # effective batch size is 5050 - as we are performing online training - combinations_with_replacement(batch, 2)
-    parser.add_argument('--dataset_dir', default=Path('/data/p288722/datasets/cifar'), type=Path)
+    parser.add_argument('--dataset_dir', default='/data/p288722/datasets/cifar', type=str)
     parser.add_argument('--finetune', action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument('--finetune_ckpt', type=str,
-                        default='/data/p288722/runtime_data/deep_hashing/sota_dsh_baseline_cifar10/'
-                                '12-bit-scratch/checkpoints/epoch=26-step=12150.ckpt')
+    parser.add_argument('--finetune_ckpt', type=str, default=None)
     parser.add_argument('--ckpt', type=str, default=None)
 
     # Pytorch lightning args
-    parser.add_argument('--logs_dir', default=Path('/data/p288722/runtime_data/deep_hashing'), type=Path)
-    parser.add_argument('--experiment_name', default='dsh_push_pull_scratch', type=str)
+    parser.add_argument('--logs_dir', required=True, type=str, help='Path to save the logs/metrics during training')
+    parser.add_argument('--experiment_name', default='dsh_push_pull', type=str)
     parser.add_argument('--num_workers', default=2, type=int,
                         help='how many subprocesses to use for data loading. ``0`` means that the data will be '
                              'loaded in the main process. (default: ``2``)')
-    parser.add_argument('--version', default=None, type=int)
+    parser.add_argument('--logs_version', default=None, type=int)
 
     # Push Pull Convolutional Unit Params
     parser.add_argument('--use_push_pull', action=argparse.BooleanOptionalAction, default=True)
@@ -280,9 +285,9 @@ def train_on_clean_images():
     if not args.max_epochs:
         args.max_epochs = 60
 
-    assert args.dataset_dir.exists(), 'dataset_dir does not exists!'
-    assert args.logs_dir.exists(), 'logs_dir does not exists!'
-    args.logs_dir.joinpath(args.experiment_name).mkdir(exist_ok=True)
+    assert Path(args.dataset_dir).exists(), 'dataset_dir does not exists!'
+    assert Path(args.logs_dir).exists(), 'logs_dir does not exists!'
+    Path(args.logs_dir).joinpath(args.experiment_name).mkdir(exist_ok=True)
 
     if args.finetune:
         assert Path(args.finetune_ckpt).exists(), 'finetune_ckpt path does not exists!'
@@ -324,7 +329,7 @@ def train_on_clean_images():
     # training
     # ------------
     logger = TensorBoardLogger(save_dir=args.logs_dir, name=args.experiment_name, default_hp_metric=False,
-                               version=args.version)
+                               version=args.logs_version)
     ckpt_callback = ModelCheckpoint(mode='min', monitor='loss_val',
                                     save_last=True)  # fixme: populate dir_path when continue training is set
     lr_monitor_callback = LearningRateMonitor(logging_interval='epoch')

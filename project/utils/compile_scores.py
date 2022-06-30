@@ -57,31 +57,31 @@ def save_scores(exp_names, exp_results):
 
 
 def run_flow():
-    base_dir = Path(r'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch')
+    base_dir = Path(r'/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch_48bit')
 
     exp_names = [
         'baseline_48-bit-scratch_60epochs',
-        'push3_pull3_avg0_inhibition1_scale0_bias1',
-        'push3_pull3_avg0_inhibition2_scale0_bias1',
-        'push3_pull3_avg0_inhibition3_scale0_bias1',
-        'push3_pull3_avg3_inhibition1_scale0_bias1',
-        'push3_pull3_avg3_inhibition2_scale0_bias1',
-        'push3_pull3_avg3_inhibition3_scale0_bias1',
-        'push3_pull5_avg0_inhibition1_scale0_bias1',
-        'push3_pull5_avg0_inhibition2_scale0_bias1',
-        'push3_pull5_avg0_inhibition3_scale0_bias1',
-        'push3_pull5_avg3_inhibition1_scale0_bias1',
-        'push3_pull5_avg3_inhibition2_scale0_bias1',
-        'push3_pull5_avg3_inhibition3_scale0_bias1',
-        'push5_pull5_avg0_inhibition1_scale0_bias1',
-        'push5_pull5_avg0_inhibition2_scale0_bias1',
-        'push5_pull5_avg0_inhibition3_scale0_bias1',
-        'push5_pull5_avg3_inhibition1_scale0_bias1',
-        'push5_pull5_avg3_inhibition2_scale0_bias1',
-        'push5_pull5_avg3_inhibition3_scale0_bias1',
-        'push5_pull5_avg5_inhibition1_scale0_bias1',
-        'push5_pull5_avg5_inhibition2_scale0_bias1',
-        'push5_pull5_avg5_inhibition3_scale0_bias1',
+        '2layers_push3_pull3_avg0_inhibition0.5',
+        '2layers_push3_pull3_avg0_inhibition1.0',
+        '2layers_push3_pull3_avg0_inhibition1.5',
+        '2layers_push3_pull3_avg3_inhibition0.5',
+        '2layers_push3_pull3_avg3_inhibition1.0',
+        '2layers_push3_pull3_avg3_inhibition1.5',
+        '2layers_push3_pull5_avg0_inhibition0.5',
+        '2layers_push3_pull5_avg0_inhibition1.0',
+        '2layers_push3_pull5_avg0_inhibition1.5',
+        '2layers_push3_pull5_avg3_inhibition0.5',
+        '2layers_push3_pull5_avg3_inhibition1.0',
+        '2layers_push3_pull5_avg3_inhibition1.5',
+        '2layers_push5_pull5_avg0_inhibition0.5',
+        '2layers_push5_pull5_avg0_inhibition1.0',
+        '2layers_push5_pull5_avg0_inhibition1.5',
+        '2layers_push5_pull5_avg3_inhibition0.5',
+        '2layers_push5_pull5_avg3_inhibition1.0',
+        '2layers_push5_pull5_avg3_inhibition1.5',
+        '2layers_push5_pull5_avg5_inhibition0.5',
+        '2layers_push5_pull5_avg5_inhibition1.0',
+        '2layers_push5_pull5_avg5_inhibition1.5',
     ]
 
     exp_results = []

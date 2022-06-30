@@ -1,4 +1,5 @@
 # Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -30,8 +31,7 @@ MANIFEST
 test_tube_exp/
 tests/tests_tt_dir/
 tests/save_dir
-default/   
-data/
+default/
 test_tube_logs/
 test_tube_data/
 datasets/
@@ -127,4 +127,3 @@ venv.bak/
 lightning_logs/
 MNIST
 .DS_Store
-/project/logs_dsh_baseline_cifar10/

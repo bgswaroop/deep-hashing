@@ -29,11 +29,11 @@ class AddGaussianNoise(object):
 
 
 class CIFAR10C(Dataset):
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, num_splits, transform=None):
         super(CIFAR10C, self).__init__()
         corruptions = sorted(root_dir.glob('*'))
-        self._corruptions = {x.stem: np.split(np.load(x), 5) for x in corruptions if x.stem != 'labels'}
-        self._labels = np.split(np.load(root_dir.joinpath('labels.npy')), 5)
+        self._corruptions = {x.stem: np.split(np.load(x), num_splits) for x in corruptions if x.stem != 'labels'}
+        self._labels = np.split(np.load(root_dir.joinpath('labels.npy')), num_splits)
         self._corruption_type = 'gaussian_noise'  # This is the default value which can be overridden
         self.transform = transform
         self._all_corruption_types = set(self._corruptions.keys())
@@ -56,7 +56,7 @@ class CIFAR10C(Dataset):
 
     @severity_level.setter
     def severity_level(self, value):
-        assert value in {0, 1, 2, 3, 4}
+        assert value in {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
         self._severity_level = value
 
     def __getitem__(self, index):
@@ -126,8 +126,9 @@ def predict_with_noise():
 
     assert Path(args.dataset_dir).exists(), f'{args.dataset_dir} does not exists!'
     assert Path(args.model_ckpt).exists(), f'{args.model_ckpt} path does not exists!'
-    assert Path(args.baseline_classifier_results_dir).exists(), \
-        f'{args.baseline_classifier_results_dir} path does not exists!'
+    assert Path(args.baseline_classifier_results_dir).parent.exists(), \
+        f'{Path(args.baseline_classifier_results_dir).parent} path does not exists!'
+    Path(args.baseline_classifier_results_dir).mkdir(exist_ok=True, parents=False)
 
     normalize = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
     transform_train = transforms.Compose([
@@ -151,7 +152,7 @@ def predict_with_noise():
     model = Classifier(args)
     model.load_state_dict(model_ckpt['state_dict'])
 
-    trainer = pl.Trainer.from_argparse_args(args)
+    trainer = pl.Trainer.from_argparse_args(args, gpus=1)
     train_predictions = trainer.predict(model=model, dataloaders=train_loader)
     train_hash_codes = torch.concat([x['hash_codes'] for x in train_predictions])
     train_ground_truths = torch.concat([x['ground_truths'] for x in train_predictions])
@@ -172,13 +173,15 @@ def predict_with_noise():
     map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths)
     mAP_scores['clean'] = float(map_score)
 
-    corrupted_test_dataset = CIFAR10C(Path(args.dataset_dir).joinpath('CIFAR-10-C'), transform=transform_test)
+    dataset_name = 'CIFAR-10-C-EnhancedSeverity'
+    corrupted_test_dataset = CIFAR10C(Path(args.dataset_dir).joinpath(dataset_name),
+                                      num_splits=10, transform=transform_test)
     # fixme: filter the corruption_types based on the input arguments
     corruption_types = corrupted_test_dataset.test_corruption_types
 
     for corruption_type in corruption_types:
         corrupted_test_dataset.corruption_type = corruption_type
-        for severity_level in [0, 1, 2, 3, 4]:
+        for severity_level in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
             corrupted_test_dataset.severity_level = severity_level
 
             test_dataloader = DataLoader(corrupted_test_dataset, args.batch_size, num_workers=args.num_workers)
@@ -191,13 +194,13 @@ def predict_with_noise():
     print(mAP_scores)
     results_dir = Path(args.model_ckpt).parent.parent.joinpath('results')
     results_dir.mkdir(exist_ok=True, parents=True)
-    with open(results_dir.joinpath(f'mAP_scores.json'), 'w+') as f:
+    with open(results_dir.joinpath(f'mAP_scores_{dataset_name}.json'), 'w+') as f:
         json.dump(mAP_scores, f, indent=2)
-    baseline_results_file = Path(args.baseline_classifier_results_dir).joinpath(f'mAP_scores.json')
+    baseline_results_file = Path(args.baseline_classifier_results_dir).joinpath(f'mAP_scores_{dataset_name}.json')
     with open(baseline_results_file) as f:
         mAP_scores_baseline = json.load(f)
     CE, mCE, relative_CE, relative_mCE = comparison_with_baseline(mAP_scores, mAP_scores_baseline)
-    with open(results_dir.joinpath(f'all_scores.json'), 'w+') as f:
+    with open(results_dir.joinpath(f'all_scores_{dataset_name}.json'), 'w+') as f:
         json.dump({
             'baseline_results_file': str(baseline_results_file),
             'CE': CE,
