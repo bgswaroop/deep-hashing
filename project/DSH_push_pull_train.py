@@ -1,5 +1,4 @@
 import argparse
-from itertools import combinations_with_replacement
 from pathlib import Path
 from typing import Any, Union
 
@@ -8,14 +7,84 @@ import torch
 import torch.nn.functional as F
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch.linalg import vector_norm
 from torch.nn.common_types import _size_2_t
 from torch.nn.modules.utils import _pair
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets.cifar import CIFAR10
 
+from utils.loss_function import dsh_loss
 from utils.metrics import compute_map_score
+
+
+class PushPullBase(pl.LightningModule):
+    def __init__(self):
+        super(PushPullBase, self).__init__()
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        b = self(x)
+        loss = dsh_loss(b, y, self.hparams.hash_length * 2, self.hparams.regularization_weight_alpha)
+        self.log('loss', {'train': loss})
+        return loss
+
+    def validation_step(self, batch, batch_idx, dataloader_idx):
+        x, y = batch
+        predictions = self(x)
+        hash_code = torch.sign(predictions)
+
+        if dataloader_idx == 0:
+            loss = dsh_loss(predictions, y, self.hparams.hash_length * 2, self.hparams.regularization_weight_alpha)
+            self.log('loss', {'val': loss}, add_dataloader_idx=False)
+            # This additional log is to save the model with the least loss_val
+            self.log('loss_val', loss, add_dataloader_idx=False, logger=False)
+            return {'val_data': {'hash_codes': hash_code, 'ground_truths': y}}
+        elif dataloader_idx == 1:
+            return {'train_data': {'hash_codes': hash_code, 'ground_truths': y}}
+        elif dataloader_idx == 2:
+            return {'test_data': {'hash_codes': hash_code, 'ground_truths': y}}
+
+    def validation_epoch_end(self, outputs) -> None:
+        val_hash_codes = torch.concat([x['val_data']['hash_codes'] for x in outputs[0]])
+        val_ground_truths = torch.concat([x['val_data']['ground_truths'] for x in outputs[0]])
+        trn_hash_codes = torch.concat([x['train_data']['hash_codes'] for x in outputs[1]])
+        trn_ground_truths = torch.concat([x['train_data']['ground_truths'] for x in outputs[1]])
+        test_hash_codes = torch.concat([x['test_data']['hash_codes'] for x in outputs[2]])
+        test_ground_truths = torch.concat([x['test_data']['ground_truths'] for x in outputs[2]])
+
+        val_score = compute_map_score(trn_hash_codes, trn_ground_truths, val_hash_codes, val_ground_truths, self.device)
+        # train_score = compute_map_score(trn_hash_codes, trn_ground_truths, trn_hash_codes, trn_ground_truths,
+        # self.device)
+        test_score = compute_map_score(trn_hash_codes, trn_ground_truths, test_hash_codes, test_ground_truths,
+                                       self.device)
+
+        self.log('MAP_score', {'val': val_score, 'test': test_score})
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        x, y = batch
+        predictions = self(x)
+        hash_code = torch.sign(predictions)
+        return {'hash_codes': hash_code, 'ground_truths': y}
+
+    def configure_optimizers(self):
+
+        optimizer = torch.optim.Adam(self.parameters(),
+                                     lr=self.hparams.learning_rate,
+                                     weight_decay=self.hparams.weight_decay)
+
+        # decrease learning rate by 40% (gamma) after 20,000 iterations or 40 epochs (step_size)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=1 - 0.4)
+
+        return [optimizer], [scheduler]
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--hash_length', type=int, default=48)
+        parser.add_argument('--learning_rate', type=float, default=1e-3)
+        parser.add_argument('--weight_decay', type=float, default=0.004)
+        parser.add_argument('--regularization_weight_alpha', type=float, default=0.01)
+        return parser
 
 
 class PushPullConv2DUnit(torch.nn.Module):
@@ -46,13 +115,6 @@ class PushPullConv2DUnit(torch.nn.Module):
         self.pull_inhibition_strength = pull_inhibition_strength
         self.scale_the_outputs = scale_the_outputs
         self.pull_kernel_size = pull_kernel_size
-
-        # for kernel_size in [push_kernel_size, pull_kernel_size, avg_kernel_size]:
-        #     if type(kernel_size) is tuple:
-        #         assert kernel_size[0] % 2 == 1, 'First dimension of kernel_size must be odd'
-        #         assert kernel_size[1] % 2 == 1, 'Second dimension of kernel_size must be odd'
-        #     elif type(kernel_size) is int:
-        #         assert kernel_size % 2 == 1, 'kernel_size must be odd'
 
         self.push_conv = torch.nn.Conv2d(
             in_channels=in_channels, out_channels=out_channels, kernel_size=push_kernel_size, stride=stride,
@@ -109,19 +171,12 @@ class PushPullConv2DUnit(torch.nn.Module):
         return x_out_scaled
 
 
-class Classifier(pl.LightningModule):
+class BaselineConvNet(PushPullBase):
     def __init__(self, args):
         super().__init__()
         self.save_hyperparameters(args)
-        if args.use_push_pull:
+        if args.use_push_pull and args.num_push_pull_layers >= 1:
             self.conv1 = PushPullConv2DUnit(in_channels=3, out_channels=32,
-                                            push_kernel_size=args.push_kernel_size,
-                                            pull_kernel_size=args.pull_kernel_size,
-                                            avg_kernel_size=args.avg_kernel_size,
-                                            pull_inhibition_strength=args.pull_inhibition_strength,
-                                            scale_the_outputs=args.scale_the_outputs,
-                                            padding='same', bias=args.bias)
-            self.conv2 = PushPullConv2DUnit(in_channels=32, out_channels=32,
                                             push_kernel_size=args.push_kernel_size,
                                             pull_kernel_size=args.pull_kernel_size,
                                             avg_kernel_size=args.avg_kernel_size,
@@ -130,7 +185,18 @@ class Classifier(pl.LightningModule):
                                             padding='same', bias=args.bias)
         else:
             self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=32, kernel_size=(5, 5), padding='same')
+
+        if args.use_push_pull and args.num_push_pull_layers >= 2:
+            self.conv2 = PushPullConv2DUnit(in_channels=32, out_channels=32,
+                                            push_kernel_size=args.push_kernel_size,
+                                            pull_kernel_size=args.pull_kernel_size,
+                                            avg_kernel_size=args.avg_kernel_size,
+                                            pull_inhibition_strength=args.pull_inhibition_strength,
+                                            scale_the_outputs=args.scale_the_outputs,
+                                            padding='same', bias=args.bias)
+        else:
             self.conv2 = torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5, 5), padding='same')
+
         self.conv3 = torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(5, 5), padding='same')
         self.fc1 = torch.nn.Linear(in_features=3 * 3 * 64, out_features=500)
         self.fc2 = torch.nn.Linear(in_features=500, out_features=self.hparams.hash_length)
@@ -149,100 +215,13 @@ class Classifier(pl.LightningModule):
         x = self.fc2(x)
         return x
 
-    @staticmethod
-    def dsh_loss(predictions, ground_truth_classes, margin, alpha) -> torch.tensor:
 
-        # Preprocess the inputs for computing the loss (simulating the inputs for siamese network)
-        comb = combinations_with_replacement(zip(predictions, ground_truth_classes), 2)
-        comb = [(b1, b2, (y1 == y2).int()) for ((b1, y1), (b2, y2)) in comb]
-        h1 = torch.stack([x[0] for x in comb])
-        h2 = torch.stack([x[1] for x in comb])
-        targets = torch.stack([x[2] for x in comb])
+class AlexNet(PushPullBase):
+    def __init__(self):
+        super(AlexNet, self).__init__()
 
-        # Deep Supervised Hashing (DSH) Loss
-        # https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Liu_Deep_Supervised_Hashing_CVPR_2016_paper.pdf
-
-        # l2_dist == hamming_distance when h1 and h2 are perfect binary
-        l2_dist = torch.square(vector_norm(h1 - h2, ord=2, dim=1))
-
-        # Loss term for similar-pairs (i.e when target == 1)
-        # It punishes similar images mapped to different binary codes
-        l1 = 0.5 * targets * l2_dist
-
-        # Loss term for dissimilar-pairs (i.e when target == 0)
-        # It punishes dissimilar images mapped to close binary codes
-        l2 = 0.5 * (1 - targets) * torch.max(margin - l2_dist, torch.zeros_like(l2_dist))
-
-        # Regularization term
-        l3 = alpha * (vector_norm(torch.abs(h1) - torch.ones_like(h1), ord=1, dim=1) +
-                      vector_norm(torch.abs(h2) - torch.ones_like(h2), ord=1, dim=1))
-
-        minibatch_loss = l1 + l2 + l3
-        loss = torch.mean(minibatch_loss)
-        return loss
-
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        b = self(x)
-        loss = self.dsh_loss(b, y, self.hparams.hash_length * 2, self.hparams.regularization_weight_alpha)
-        self.log('loss', {'train': loss})
-        return loss
-
-    def validation_step(self, batch, batch_idx, dataloader_idx):
-        x, y = batch
-        predictions = self(x)
-        hash_code = torch.sign(predictions)
-
-        if dataloader_idx == 0:
-            loss = self.dsh_loss(predictions, y, self.hparams.hash_length * 2, self.hparams.regularization_weight_alpha)
-            self.log('loss', {'val': loss}, add_dataloader_idx=False)
-            # This additional log is to save the model with the least loss_val
-            self.log('loss_val', loss, add_dataloader_idx=False, logger=False)
-            return {'val_data': {'hash_codes': hash_code, 'ground_truths': y}}
-        elif dataloader_idx == 1:
-            return {'train_data': {'hash_codes': hash_code, 'ground_truths': y}}
-        elif dataloader_idx == 2:
-            return {'test_data': {'hash_codes': hash_code, 'ground_truths': y}}
-
-    def validation_epoch_end(self, outputs) -> None:
-        val_hash_codes = torch.concat([x['val_data']['hash_codes'] for x in outputs[0]])
-        val_ground_truths = torch.concat([x['val_data']['ground_truths'] for x in outputs[0]])
-        trn_hash_codes = torch.concat([x['train_data']['hash_codes'] for x in outputs[1]])
-        trn_ground_truths = torch.concat([x['train_data']['ground_truths'] for x in outputs[1]])
-        test_hash_codes = torch.concat([x['test_data']['hash_codes'] for x in outputs[2]])
-        test_ground_truths = torch.concat([x['test_data']['ground_truths'] for x in outputs[2]])
-
-        val_score = compute_map_score(trn_hash_codes, trn_ground_truths, val_hash_codes, val_ground_truths)
-        # train_score = compute_map_score(trn_hash_codes, trn_ground_truths, trn_hash_codes, trn_ground_truths)
-        test_score = compute_map_score(trn_hash_codes, trn_ground_truths, test_hash_codes, test_ground_truths)
-
-        self.log('MAP_score', {'val': val_score, 'test': test_score})
-
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        x, y = batch
-        predictions = self(x)
-        hash_code = torch.sign(predictions)
-        return {'hash_codes': hash_code, 'ground_truths': y}
-
-    def configure_optimizers(self):
-
-        optimizer = torch.optim.Adam(self.parameters(),
-                                     lr=self.hparams.learning_rate,
-                                     weight_decay=self.hparams.weight_decay)
-
-        # decrease learning rate by 40% (gamma) after 20,000 iterations or 40 epochs (step_size)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=1 - 0.4)
-
-        return [optimizer], [scheduler]
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--hash_length', type=int, default=48)
-        parser.add_argument('--learning_rate', type=float, default=1e-3)
-        parser.add_argument('--weight_decay', type=float, default=0.004)
-        parser.add_argument('--regularization_weight_alpha', type=float, default=0.01)
-        return parser
+    def forward(self, *args, **kwargs) -> Any:
+        raise NotImplementedError
 
 
 def train_on_clean_images():
@@ -269,6 +248,7 @@ def train_on_clean_images():
 
     # Push Pull Convolutional Unit Params
     parser.add_argument('--use_push_pull', action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument('--num_push_pull_layers', type=int, default=1)
     parser.add_argument('--push_kernel_size', type=int, default=3, help='Size of the push filter (int)')
     parser.add_argument('--pull_kernel_size', type=int, default=3, help='Size of the pull filter (int)')
     parser.add_argument('--avg_kernel_size', type=int, default=3, help='Size of the avg filter (int)')
@@ -277,11 +257,15 @@ def train_on_clean_images():
     parser.add_argument('--bias', default=True, action=argparse.BooleanOptionalAction)
 
     parser = pl.Trainer.add_argparse_args(parser)
-    parser = Classifier.add_model_specific_args(parser)
+    parser = BaselineConvNet.add_model_specific_args(parser)
     args = parser.parse_args()
 
     if not args.accelerator:
         args.accelerator = 'gpu'
+    if args.accelerator == 'gpu':
+        args.device = torch.device(f'cuda:{torch.cuda.current_device()}')
+    else:
+        args.device = torch.device(f'cpu')
     if not args.max_epochs:
         args.max_epochs = 60
 
@@ -315,7 +299,7 @@ def train_on_clean_images():
     # ------------
     # model
     # ------------
-    model = Classifier(args)
+    model = BaselineConvNet(args)
 
     if args.finetune:
         # copy the pre-trained weights from 12-bit trained model to the 48-bit model
@@ -349,7 +333,8 @@ def train_on_clean_images():
     test_hash_codes = torch.concat([x['hash_codes'] for x in test_predictions])
     test_ground_truths = torch.concat([x['ground_truths'] for x in test_predictions])
 
-    map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths)
+    map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths,
+                                  args.device)
     print(f'MAP score: {map_score}')
 
 

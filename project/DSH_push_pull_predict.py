@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets.cifar import CIFAR10
 
-from DSH_push_pull_train import Classifier
+from DSH_push_pull_train import BaselineConvNet
 from utils.metrics import compute_map_score
 
 
@@ -112,17 +112,24 @@ def predict_with_noise():
                         help='how many subprocesses to use for data loading. ``0`` means that the data will be '
                              'loaded in the main process. (default: ``2``)')
     parser.add_argument('--model_ckpt', type=str, required=True)
-    parser.add_argument('--corruption_type', default=None, type=str,
-                        choices=['gaussian'])
+    parser.add_argument('--corruption_types', nargs='*', default=None, type=str,
+                        choices=['gaussian_noise', 'shot_noise', 'impulse_noise', 'defocus_blur', 'glass_blur',
+                                 'motion_blur', 'zoom_blur', 'snow', 'frost', 'fog', 'brightness', 'contrast',
+                                 'elastic_transform', 'pixelate', 'jpeg_compression'])
     parser.add_argument('--use_push_pull', action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument('--num_push_pull_layers', type=int, default=1)
     parser.add_argument('--baseline_classifier_results_dir', required=True, type=str)
 
     parser = pl.Trainer.add_argparse_args(parser)
-    parser = Classifier.add_model_specific_args(parser)
+    parser = BaselineConvNet.add_model_specific_args(parser)
     args = parser.parse_args()
 
     if not args.accelerator:
         args.accelerator = 'gpu'
+    if args.accelerator == 'gpu':
+        args.device = torch.device(f'cuda:{torch.cuda.current_device()}')
+    else:
+        args.device = torch.device(f'cpu')
 
     assert Path(args.dataset_dir).exists(), f'{args.dataset_dir} does not exists!'
     assert Path(args.model_ckpt).exists(), f'{args.model_ckpt} path does not exists!'
@@ -149,7 +156,7 @@ def predict_with_noise():
     args.pull_inhibition_strength = model_ckpt['hyper_parameters'].get('pull_inhibition_strength', None)
     args.scale_the_outputs = model_ckpt['hyper_parameters'].get('scale_the_outputs', None)
 
-    model = Classifier(args)
+    model = BaselineConvNet(args)
     model.load_state_dict(model_ckpt['state_dict'])
 
     trainer = pl.Trainer.from_argparse_args(args, gpus=1)
@@ -165,19 +172,28 @@ def predict_with_noise():
     clean_test_dataset = CIFAR10(args.dataset_dir, train=False, download=True, transform=transform_test)
     test_dataloader = DataLoader(clean_test_dataset, args.batch_size, num_workers=args.num_workers)
 
-    mAP_scores = defaultdict(list)
-
-    predictions = trainer.predict(model=model, dataloaders=test_dataloader)
-    test_hash_codes = torch.concat([x['hash_codes'] for x in predictions])
-    test_ground_truths = torch.concat([x['ground_truths'] for x in predictions])
-    map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths)
-    mAP_scores['clean'] = float(map_score)
-
+    results_dir = Path(args.model_ckpt).parent.parent.joinpath('results')
+    results_dir.mkdir(exist_ok=True, parents=True)
     dataset_name = 'CIFAR-10-C-EnhancedSeverity'
+    mAP_results_file = results_dir.joinpath(f'mAP_scores_{dataset_name}.json')
+    mAP_scores = defaultdict(list)
+    if mAP_results_file.exists():
+        with open(mAP_results_file) as f:
+            mAP_scores.update(json.load(f))
+
+    if 'clean' not in mAP_scores:
+        predictions = trainer.predict(model=model, dataloaders=test_dataloader)
+        test_hash_codes = torch.concat([x['hash_codes'] for x in predictions])
+        test_ground_truths = torch.concat([x['ground_truths'] for x in predictions])
+        map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths, args.device)
+        mAP_scores['clean'] = float(map_score)
+
     corrupted_test_dataset = CIFAR10C(Path(args.dataset_dir).joinpath(dataset_name),
                                       num_splits=10, transform=transform_test)
-    # fixme: filter the corruption_types based on the input arguments
-    corruption_types = corrupted_test_dataset.test_corruption_types
+    if args.corruption_types:
+        corruption_types = args.corruption_types
+    else:
+        corruption_types = corrupted_test_dataset.test_corruption_types
 
     for corruption_type in corruption_types:
         corrupted_test_dataset.corruption_type = corruption_type
@@ -188,13 +204,12 @@ def predict_with_noise():
             predictions = trainer.predict(model=model, dataloaders=test_dataloader)
             test_hash_codes = torch.concat([x['hash_codes'] for x in predictions])
             test_ground_truths = torch.concat([x['ground_truths'] for x in predictions])
-            map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths)
+            map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths,
+                                          args.device)
             mAP_scores[corruption_type].append(float(map_score))
 
     print(mAP_scores)
-    results_dir = Path(args.model_ckpt).parent.parent.joinpath('results')
-    results_dir.mkdir(exist_ok=True, parents=True)
-    with open(results_dir.joinpath(f'mAP_scores_{dataset_name}.json'), 'w+') as f:
+    with open(mAP_results_file, 'w+') as f:
         json.dump(mAP_scores, f, indent=2)
     baseline_results_file = Path(args.baseline_classifier_results_dir).joinpath(f'mAP_scores_{dataset_name}.json')
     with open(baseline_results_file) as f:

@@ -4,8 +4,10 @@ import collections
 import ctypes
 import warnings
 from io import BytesIO
+from pathlib import Path
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import skimage as sk
 import torchvision.datasets as dset
@@ -185,7 +187,8 @@ def defocus_blur(x, severity=1):
 
 def motion_blur(x, severity=1):
     # c = [(6, 1), (6, 1.5), (6, 2), (8, 2), (9, 2.5)][severity - 1]
-    c = [(10, 3), (15, 5), (15, 8), (15, 12), (20, 15)][severity - 1]
+    c = [(6, 1), (6, 1.5), (6, 2), (8, 2), (9, 2.5),
+         (9, 3), (10, 3), (11, 3), (12, 3), (13, 4)][severity - 1]
     output = BytesIO()
     x.save(output, format='PNG')
     x = MotionImage(blob=output.getvalue())
@@ -202,13 +205,21 @@ def motion_blur(x, severity=1):
 
 
 def zoom_blur(x, severity=1):
-    # c = [np.arange(1, 1.06, 0.01), np.arange(1, 1.11, 0.01), np.arange(1, 1.16, 0.01),
-    #      np.arange(1, 1.21, 0.01), np.arange(1, 1.26, 0.01)][severity - 1]
-    c = [np.arange(1, 1.11, 0.01),
-         np.arange(1, 1.16, 0.01),
-         np.arange(1, 1.21, 0.02),
-         np.arange(1, 1.26, 0.02),
-         np.arange(1, 1.31, 0.03)][severity - 1]
+    c = [np.arange(1, 1.06, 0.01),
+         np.arange(1, 1.11, 0.01),
+         np.arange(1, 1.14, 0.01),
+         np.arange(1, 1.18, 0.01),
+         np.arange(1, 1.20, 0.01),
+         np.arange(1, 1.22, 0.01),
+         np.arange(1, 1.24, 0.01),
+         np.arange(1, 1.26, 0.01),
+         np.arange(1, 1.28, 0.01),
+         np.arange(1, 1.31, 0.01)][severity - 1]
+    # c = [np.arange(1, 1.11, 0.01),
+    #      np.arange(1, 1.16, 0.01),
+    #      np.arange(1, 1.21, 0.02),
+    #      np.arange(1, 1.26, 0.02),
+    #      np.arange(1, 1.31, 0.03)][severity - 1]
     x = (np.array(x) / 255.).astype(np.float32)
     out = np.zeros_like(x)
     for zoom_factor in c:
@@ -219,8 +230,9 @@ def zoom_blur(x, severity=1):
 
 
 def fog(x, severity=1):
-    # c = [(.2, 3), (.5, 3), (0.75, 2.5), (1, 2), (1.5, 1.75)][severity - 1]
-    c = [(1.5, 2), (2., 2), (2.5, 1.7), (2.5, 1.5), (3., 1.4)][severity - 1]
+    c = [(.2, 3), (.3, 4), (.5, 3), (.6, 3), (0.75, 2.5),
+         (1, 2), (1, 2.5), (1.2, 3), (1.5, 1.75), (1.5, 2)][severity - 1]
+    # c = [(1.5, 2), (2., 2), (2.5, 1.7), (2.5, 1.5), (3., 1.4)][severity - 1]
     x = np.array(x) / 255.
     max_val = x.max()
     x += c[0] * plasma_fractal(wibbledecay=c[1])[:32, :32][..., np.newaxis]
@@ -228,12 +240,13 @@ def fog(x, severity=1):
 
 
 def frost(x, severity=1):
-    # c = [(1, 0.2), (1, 0.3), (0.9, 0.4), (0.85, 0.4), (0.75, 0.45)][severity - 1]
-    c = [(1, 0.4),
-         (0.8, 0.6),
-         (0.7, 0.7),
-         (0.65, 0.7),
-         (0.6, 0.75)][severity - 1]
+    c = [(1, 0.2), (1, 0.3), (0.9, 0.4), (0.85, 0.4), (0.7, 0.45),
+         (0.7, 0.48), (0.70, 0.50), (0.70, 0.55), (0.75, 0.55), (0.8, 0.6)][severity - 1]
+    # c = [(1, 0.4),
+    #      (0.8, 0.6),
+    #      (0.7, 0.7),
+    #      (0.65, 0.7),
+    #      (0.6, 0.75)][severity - 1]
     idx = np.random.randint(5)
     filename = ['./frost1.png', './frost2.png', './frost3.png', './frost4.jpg', './frost5.jpg', './frost6.jpg'][idx]
     frost = cv2.imread(filename)
@@ -246,16 +259,21 @@ def frost(x, severity=1):
 
 
 def snow(x, severity=1):
-    # c = [(0.1, 0.2, 1, 0.6, 8, 3, 0.95),
-    #      (0.1, 0.2, 1, 0.5, 10, 4, 0.9),
-    #      (0.15, 0.3, 1.75, 0.55, 10, 4, 0.9),
-    #      (0.25, 0.3, 2.25, 0.6, 12, 6, 0.85),
-    #      (0.3, 0.3, 1.25, 0.65, 14, 12, 0.8)][severity - 1]
-    c = [(0.1, 0.3, 3, 0.5, 10, 4, 0.8),
-         (0.2, 0.3, 2, 0.5, 12, 4, 0.7),
-         (0.55, 0.3, 4, 0.9, 12, 8, 0.7),
-         (0.55, 0.3, 4.5, 0.85, 12, 8, 0.65),
-         (0.55, 0.3, 2.5, 0.85, 12, 12, 0.55)][severity - 1]
+    c = [(0.1, 0.1, 1, 0.6, 8, 3, 0.95),
+         (0.1, 0.2, 1, 0.6, 8, 3, 0.95),
+         (0.12, 0.1, 1, 0.5, 10, 4, 0.9),
+         (0.12, 0.2, 1, 0.5, 10, 4, 0.9),
+         (0.15, 0.2, 1.75, 0.55, 10, 4, 0.9),
+         (0.15, 0.3, 1.75, 0.55, 10, 4, 0.9),
+         (0.25, 0.2, 2.25, 0.6, 12, 6, 0.85),
+         (0.25, 0.3, 2.25, 0.6, 12, 6, 0.85),
+         (0.3, 0.2, 1.25, 0.65, 14, 12, 0.8),
+         (0.3, 0.3, 1.25, 0.65, 14, 12, 0.8)][severity - 1]
+    # c = [(0.1, 0.3, 3, 0.5, 10, 4, 0.8),
+    #      (0.2, 0.3, 2, 0.5, 12, 4, 0.7),
+    #      (0.55, 0.3, 4, 0.9, 12, 8, 0.7),
+    #      (0.55, 0.3, 4.5, 0.85, 12, 8, 0.65),
+    #      (0.55, 0.3, 2.5, 0.85, 12, 12, 0.55)][severity - 1]
 
     x = np.array(x, dtype=np.float32) / 255.
     snow_layer = np.random.normal(size=x.shape[:2], loc=c[0], scale=c[1])  # [:2] for monochrome
@@ -339,16 +357,16 @@ def spatter(x, severity=1):
 
 
 def contrast(x, severity=1):
-    # c = [.75, .5, .4, .3, 0.15][severity - 1]
-    c = [0.4, .3, .2, .1, .05][severity - 1]
+    c = [.75, .6, .55, .5, .45, .4, .35, .3, .25, .15][severity - 1]
+    # c = [0.4, .3, .2, .1, .05][severity - 1]
     x = np.array(x) / 255.
     means = np.mean(x, axis=(0, 1), keepdims=True)
     return np.clip((x - means) * c + means, 0, 1) * 255
 
 
 def brightness(x, severity=1):
-    # c = [.05, .1, .15, .2, .3][severity - 1]
-    c = [.1, .2, .3, .4, .5][severity - 1]
+    c = [.02, .05, .12, .15, .18, .21, .25, .3, .35, .4][severity - 1]
+    # c = [.1, .2, .3, .4, .5][severity - 1]
     x = np.array(x) / 255.
     x = sk.color.rgb2hsv(x)
     x[:, :, 2] = np.clip(x[:, :, 2] + c, 0, 1)
@@ -369,8 +387,8 @@ def saturate(x, severity=1):
 
 
 def jpeg_compression(x, severity=1):
-    # c = [80, 65, 58, 50, 40][severity - 1]
-    c = [25, 18, 15, 10, 7][severity - 1]
+    c = [80, 70, 65, 60, 55, 50, 45, 40, 35, 25][severity - 1]
+    # c = [25, 18, 15, 10, 7][severity - 1]
     output = BytesIO()
     x.save(output, 'JPEG', quality=c)
     x = PILImage.open(output)
@@ -379,8 +397,8 @@ def jpeg_compression(x, severity=1):
 
 
 def pixelate(x, severity=1):
-    # c = [0.95, 0.9, 0.85, 0.75, 0.65][severity - 1]
-    c = [0.6, 0.5, 0.4, 0.3, 0.25][severity - 1]
+    c = [0.95, 0.9, 0.85, 0.80, 0.84, .82, .76, .70, .65, .6][severity - 1]
+    # c = [0.6, 0.5, 0.4, 0.3, 0.25][severity - 1]
     x = x.resize((int(32 * c), int(32 * c)), Resampling.BOX)
     x = x.resize((32, 32), Resampling.BOX)
 
@@ -390,16 +408,21 @@ def pixelate(x, severity=1):
 # mod of https://gist.github.com/erniejunior/601cdf56d2b424757de5
 def elastic_transform(image, severity=1):
     IMSIZE = 32
-    # c = [(IMSIZE * 0, IMSIZE * 0, IMSIZE * 0.08),
-    #      (IMSIZE * 0.05, IMSIZE * 0.2, IMSIZE * 0.07),
-    #      (IMSIZE * 0.08, IMSIZE * 0.06, IMSIZE * 0.06),
-    #      (IMSIZE * 0.1, IMSIZE * 0.04, IMSIZE * 0.05),
-    #      (IMSIZE * 0.1, IMSIZE * 0.03, IMSIZE * 0.03)][severity - 1]
-    c = [(IMSIZE * 2, IMSIZE * 0.7, IMSIZE * 0.1),
-         (IMSIZE * 2, IMSIZE * 0.08, IMSIZE * 0.2),
-         (IMSIZE * 0.05, IMSIZE * 0.01, IMSIZE * 0.02),
-         (IMSIZE * 0.07, IMSIZE * 0.01, IMSIZE * 0.02),
-         (IMSIZE * 0.12, IMSIZE * 0.01, IMSIZE * 0.02)][severity - 1]
+    c = [(IMSIZE * 0, IMSIZE * 0, IMSIZE * 0.08),
+         (IMSIZE * 0.05, IMSIZE * 0.2, IMSIZE * 0.07),
+         (IMSIZE * 0.08, IMSIZE * 0.06, IMSIZE * 0.06),
+         (IMSIZE * 0.1, IMSIZE * 0.04, IMSIZE * 0.05),
+         (IMSIZE * 0.1, IMSIZE * 0.03, IMSIZE * 0.03),
+         (IMSIZE * 0.12, IMSIZE * 0.04, IMSIZE * 0.04),
+         (IMSIZE * 0.14, IMSIZE * 0.05, IMSIZE * 0.06),
+         (IMSIZE * 0.16, IMSIZE * 0.06, IMSIZE * 0.08),
+         (IMSIZE * 0.18, IMSIZE * 0.06, IMSIZE * 0.09),
+         (IMSIZE * 2, IMSIZE * 0.7, IMSIZE * 0.1)][severity - 1]
+    # c = [(IMSIZE * 2, IMSIZE * 0.7, IMSIZE * 0.1),
+    #      (IMSIZE * 2, IMSIZE * 0.08, IMSIZE * 0.2),
+    #      (IMSIZE * 0.05, IMSIZE * 0.01, IMSIZE * 0.02),
+    #      (IMSIZE * 0.07, IMSIZE * 0.01, IMSIZE * 0.02),
+    #      (IMSIZE * 0.12, IMSIZE * 0.01, IMSIZE * 0.02)][severity - 1]
 
     image = np.array(image, dtype=np.float32) / 255.
     shape = image.shape
@@ -432,11 +455,11 @@ def run_flow():
     print('Using CIFAR-10 data')
 
     d = collections.OrderedDict()
-    d['Gaussian Noise'] = gaussian_noise
-    d['Shot Noise'] = shot_noise
-    d['Impulse Noise'] = impulse_noise
-    d['Defocus Blur'] = defocus_blur
-    d['Glass Blur'] = glass_blur
+    # d['Gaussian Noise'] = gaussian_noise
+    # d['Shot Noise'] = shot_noise
+    # d['Impulse Noise'] = impulse_noise
+    # d['Defocus Blur'] = defocus_blur
+    # d['Glass Blur'] = glass_blur
     # d['Motion Blur'] = motion_blur
     # d['Zoom Blur'] = zoom_blur
     # d['Snow'] = snow
@@ -445,16 +468,15 @@ def run_flow():
     # d['Brightness'] = brightness
     # d['Contrast'] = contrast
     # d['Elastic'] = elastic_transform
-    # d['Pixelate'] = pixelate
-    # d['JPEG'] = jpeg_compression
-    #
+    d['Pixelate'] = pixelate
+    d['JPEG'] = jpeg_compression
+
     # d['Speckle Noise'] = speckle_noise
     # d['Gaussian Blur'] = gaussian_blur
     # d['Spatter'] = spatter
     # d['Saturate'] = saturate
 
     test_data = dset.CIFAR10('/data/p288722/datasets/cifar', train=False)
-
     convert_img = trn.Compose([trn.ToTensor(), trn.ToPILImage()])
 
     for method_name in d.keys():
@@ -464,6 +486,7 @@ def run_flow():
         for severity in range(1, 11):
             corruption = lambda clean_img: d[method_name](clean_img, severity)
 
+            # for img, label in zip([test_data.data[4]], [test_data.targets[4]]):
             for img, label in zip(test_data.data, test_data.targets):
                 labels.append(label)
                 cifar_c.append(np.uint8(corruption(convert_img(img))))
@@ -477,5 +500,50 @@ def run_flow():
     print('Finished processing!')
 
 
+def plot_samples():
+    root_dir = Path(r'/data/p288722/datasets/cifar/CIFAR-10-C-EnhancedSeveritySample')
+    plot_data = (
+        # ('gaussian_noise.npy', [0.04, 0.06, .08, .10, 0.12, 0.14, 0.16, 0.18, 0.19, 0.2]),
+        # ('shot_noise.npy', [500, 250, 100, 80, 60, 50, 40, 30, 20, 15]),
+        # ('impulse_noise.npy', [.01, .02, .03, .05, .07, .09, .11, .13, .15, .17]),
+        # ('defocus_blur.npy', [(0.3, 0.4), (0.4, 0.5), (0.5, 0.6), (1, 0.2), (1.5, 0.1),
+        #                       (1.5, 0.5), (1.9, 0.1), (2.2, 0.1), (2.5, 0.1), (3, 0.1)]),
+        # ('glass_blur.npy', [(0.05, 1, 1), (0.25, 1, 1), (0.4, 1, 1), (0.25, 1, 2), (0.4, 1, 2),
+        #                     (0.5, 1, 1), (0.5, 1, 2), (0.6, 1, 2), (0.6, 1, 3), (0.7, 1, 2)]),
+        # ('motion_blur.npy', [(6, 1), (6, 1.5), (6, 2), (8, 2), (9, 2.5),
+        #                      (9, 3), (10, 3), (11, 3), (12, 3), (13, 4)]),
+        # ('zoom_blur.npy', [1.06, 1.11, 1.14, 1.18, 1.20, 1.22, 1.24, 1.26, 1.28, 1.31]),
+        # ('snow.npy', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        # ('frost.npy', [(1, 0.2), (1, 0.3), (0.9, 0.4), (0.85, 0.4), (0.7, 0.45),
+        #                (0.7, 0.48), (0.70, 0.50), (0.70, 0.55), (0.75, 0.55), (0.8, 0.6)]),
+        # ('fog.npy', [(.2, 3), (.3, 4), (.5, 3), (.6, 3), (0.75, 2.5),
+        #              (1, 2), (1, 2.5), (1.2, 3), (1.5, 1.75), (1.5, 2)]),
+        # ('brightness.npy', [.02, .05, .12, .15, .18, .21, .25, .3, .35, .4]),
+        # ('contrast.npy', [.75, .6, .55, .5, .45, .4, .35, .3, .25, .15]),
+        # ('elastic_transform.npy', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        # ('pixelate.npy', [0.95, 0.9, 0.85, 0.80, 0.84, .82, .76, .70, .65, .6]),
+        ('jpeg_compression.npy', [80, 70, 65, 60, 55, 50, 45, 40, 35, 25]),
+    )
+    for name, labels in plot_data:
+        plt.figure()
+        fig, ax = plt.subplots(1, len(labels), figsize=(len(labels), 2))
+        images = np.load(root_dir.joinpath(name))
+
+        for idx, severity_level in enumerate(labels):
+            ax[idx].imshow(images[idx])
+            ax[idx].set_title(f'{severity_level}')
+            ax[idx].axis('off')
+
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.1, hspace=0.4)
+        fig.suptitle(f"{name[:-4]} - for various levels of severity", fontsize="x-large")
+        fig.tight_layout()
+        fig.savefig(rf'{Path().resolve().parent.joinpath("utils")}/_plot_figures/CIFAR-10-C_simulated_{name[:-4]}.png')
+        fig.show()
+        plt.gca()
+        plt.gcf()
+        plt.close()
+
+
 if __name__ == '__main__':
     run_flow()
+    # plot_samples()

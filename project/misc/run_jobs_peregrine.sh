@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:v100:1
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=12
-#SBATCH --array=0-10
+#SBATCH --array=0-4
 #SBATCH --mail-user=g.s.bennabhaktula@rug.nl
 #SBATCH --mail-type=FAIL
 
@@ -47,66 +47,66 @@ experiment_name="dsh_push_pull_scratch_48bit"
 #20) python ${train_script} --push_kernel_size 5 --pull_kernel_size 5 --avg_kernel_size 5 --pull_inhibition_strength 1.5 --logs_version ${SLURM_ARRAY_TASK_ID} ${common_train_args} ;;
 #esac
 
+corruption_types="motion_blur zoom_blur snow frost fog brightness contrast elastic_transform pixelate jpeg_compression"
 base_dir="$logs_dir/$experiment_name"
 baseline_classifier_results_dir="/data/p288722/runtime_data/deep_hashing/dsh_push_pull_scratch_48bit/baseline_48-bit-scratch_60epochs/results"
-common_predict_args="--num_workers 12 --baseline_classifier_results_dir ${baseline_classifier_results_dir}"
+common_predict_args="--num_workers 12 --baseline_classifier_results_dir ${baseline_classifier_results_dir} --corruption_types $corruption_types"
 #python ${predict_script} --model_ckpt "${base_dir}/baseline_48-bit-scratch_60epochs/checkpoints/last.ckpt" ${common_predict_args} --no-use_push_pull
-
 #python ${predict_script} --model_ckpt "${base_dir}/version_${SLURM_ARRAY_TASK_ID}/checkpoints/last.ckpt" ${common_predict_args}
+
 case ${SLURM_ARRAY_TASK_ID} in
 0)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args} ;;
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  ;;
 1)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args} ;;
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  ;;
 2)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args} ;;
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg0_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg0_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg0_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg3_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg3_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  ;;
 3)
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition1/checkpoints/last.ckpt" ${common_predict_args} ;;
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull3_avg3_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg0_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg0_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg0_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg3_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg3_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push3_pull5_avg3_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg0_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  ;;
 4)
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition2/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition1/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition2/checkpoints/last.ckpt" ${common_predict_args} ;;
-5)
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition3/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg0_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args} ;;
-6)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull3_avg3_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args} ;;
-7)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg0_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args} ;;
-8)
-python ${predict_script} --model_ckpt "${base_dir}/push3_pull5_avg3_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg0_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args} ;;
-9)
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg3_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args} ;;
-10)
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition0.5/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition1.0/checkpoints/last.ckpt" ${common_predict_args}
-python ${predict_script} --model_ckpt "${base_dir}/push5_pull5_avg5_inhibition1.5/checkpoints/last.ckpt" ${common_predict_args} ;;
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg0_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg0_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg3_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg3_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg3_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg5_inhibition0.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg5_inhibition1.0/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  python ${predict_script} --model_ckpt "${base_dir}/2layers_push5_pull5_avg5_inhibition1.5/checkpoints/last.ckpt" --num_push_pull_layers 2 ${common_predict_args}
+  ;;
 esac
 
 #case ${SLURM_ARRAY_TASK_ID} in

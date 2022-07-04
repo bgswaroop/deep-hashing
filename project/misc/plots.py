@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 
 import cv2
 import numpy as np
@@ -10,6 +11,8 @@ from skimage.filters import gaussian
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.cifar import CIFAR10
+from wand.api import library as wandlibrary
+from wand.image import Image as WandImage
 
 
 class AddGaussianNoisePyTorch(object):
@@ -187,15 +190,15 @@ def plot_corruptions_from_CIFAR10C():
 
 
 def plot_simulate_corruptions_from_CIFAR10C():
-
     # 10 levels of Severities
     # Noise, severity_levels = GaussianNoiseNumPy, [0.04, 0.06, .08, .10, 0.12, 0.14, 0.16, 0.18, 0.19, 0.2]
     # Noise, severity_levels = ShotNoiseNumPy, [500, 250, 100, 80, 60, 50, 40, 30, 20, 15]
     # Noise, severity_levels = ImpulseNoiseNumPy, [.01, .02, .03, .05, .07, .09, .11, .13, .15, .17]
     # Noise, severity_levels = DefocusBlurNumPy, [(0.3, 0.4), (0.4, 0.5), (0.5, 0.6), (1, 0.2), (1.5, 0.1),
     #                                             (1.5, 0.5), (1.9, 0.1), (2.2, 0.1), (2.5, 0.1), (3, 0.1)]
-    Noise, severity_levels = GlassBlurNumPy, [(0.05, 1, 1), (0.25, 1, 1), (0.4, 1, 1), (0.25, 1, 2), (0.4, 1, 2),
-                                              (0.5, 1, 1), (0.5, 1, 2), (0.6, 1, 2), (0.6, 1, 3), (0.7, 1, 2)]
+    # Noise, severity_levels = GlassBlurNumPy, [(0.05, 1, 1), (0.25, 1, 1), (0.4, 1, 1), (0.25, 1, 2), (0.4, 1, 2),
+    #                                           (0.5, 1, 1), (0.5, 1, 2), (0.6, 1, 2), (0.6, 1, 3), (0.7, 1, 2)]
+    Noise, severity_levels = MotionBlurNumPy, [(10, 3), (15, 5), (15, 8), (15, 12), (20, 15)]
 
     # CIFAR-10-C Severities
     # Noise, severity_levels = GaussianNoiseNumPy, [0.04, 0.06, .08, .09, .10]
@@ -355,6 +358,42 @@ class GlassBlurNumPy(object):
         x = np.clip(gaussian(x, sigma=self.sigma, multichannel=True), 0, 1)
         x = x.transpose((2, 0, 1))
         return x
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(sigma={0}, max_delta={1}, iter={2})'.format(self.sigma, self.max_delta,
+                                                                                       self.iterations)
+
+
+class MotionBlurNumPy(object):
+    def __init__(self, params):
+        self.radius = params[0]
+        self.sigma = params[1]
+
+    # Input tensor values are in the range [0, 1.0]
+    def __call__(self, x):
+        x = np.array(x).transpose((1, 2, 0))
+
+        output = BytesIO()
+        x.save(output, format='PNG')
+        x = self.MotionImage(blob=output.getvalue())
+
+        x.motion_blur(radius=self.radius, sigma=self.sigma, angle=np.random.uniform(-45, 45))
+
+        x = cv2.imdecode(np.fromstring(x.make_blob(), np.uint8),
+                         cv2.IMREAD_UNCHANGED)
+
+        if x.shape != (32, 32):
+            return np.clip(x[..., [2, 1, 0]], 0, 255)  # BGR to RGB
+        else:  # greyscale to RGB
+            return np.clip(np.array([x, x, x]).transpose((1, 2, 0)), 0, 255)
+
+        x = x.transpose((2, 0, 1))
+        return x
+
+    # Extend wand.image.Image class to include method signature
+    class MotionImage(WandImage):
+        def motion_blur(self, radius=0.0, sigma=0.0, angle=0.0):
+            wandlibrary.MagickMotionBlurImage(self.wand, radius, sigma, angle)
 
     def __repr__(self):
         return self.__class__.__name__ + '(sigma={0}, max_delta={1}, iter={2})'.format(self.sigma, self.max_delta,

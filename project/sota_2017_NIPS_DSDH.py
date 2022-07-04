@@ -103,9 +103,11 @@ class Classifier(pl.LightningModule):
         test_hash_codes = torch.concat([x['test_data']['hash_codes'] for x in outputs[2]])
         test_ground_truths = torch.concat([x['test_data']['ground_truths'] for x in outputs[2]])
 
-        val_score = compute_map_score(trn_hash_codes, trn_ground_truths, val_hash_codes, val_ground_truths)
-        test_score = compute_map_score(trn_hash_codes, trn_ground_truths, test_hash_codes, test_ground_truths)
-        train_score = compute_map_score(trn_hash_codes, trn_ground_truths, trn_hash_codes, trn_ground_truths)
+        val_score = compute_map_score(trn_hash_codes, trn_ground_truths, val_hash_codes, val_ground_truths, self.device)
+        test_score = compute_map_score(trn_hash_codes, trn_ground_truths, test_hash_codes, test_ground_truths,
+                                       self.device)
+        train_score = compute_map_score(trn_hash_codes, trn_ground_truths, trn_hash_codes, trn_ground_truths,
+                                        self.device)
         self.log('MAP_score', {'train': train_score, 'val': val_score, 'test': test_score})
 
     def on_train_epoch_end(self) -> None:
@@ -291,6 +293,10 @@ def main():
 
     if not args.accelerator:
         args.accelerator = 'gpu'
+    if args.accelerator == 'gpu':
+        args.device = torch.device(f'cuda:{torch.cuda.current_device()}')
+    else:
+        args.device = torch.device(f'cpu')
     if not args.max_epochs:
         args.max_epochs = 150
 
@@ -354,7 +360,8 @@ def main():
     test_hash_codes = torch.concat([x['hash_codes'] for x in test_predictions])
     test_ground_truths = torch.concat([x['ground_truths'] for x in test_predictions])
 
-    map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths)
+    map_score = compute_map_score(train_hash_codes, train_ground_truths, test_hash_codes, test_ground_truths,
+                                  args.device)
     print(f'MAP score: {map_score}')
 
 
